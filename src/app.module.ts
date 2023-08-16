@@ -1,12 +1,18 @@
-import { Module } from '@nestjs/common';
+import { Module, NestModule, MiddlewareConsumer } from '@nestjs/common';
 import { AppController } from './app.controller';
 import { AppService } from './app.service';
-import { UserModule } from './User/user.module';
 import { DatabaseModule } from './Database/database.module';
+import { AuthModule } from './auth/auth.module';
+import { UsersModule } from './users/users.module';
+import { RoleMiddleware } from './middleware/role.middleware';
 
 @Module({
-  imports: [UserModule, DatabaseModule],
+  imports: [DatabaseModule, AuthModule, UsersModule],
   controllers: [AppController],
   providers: [AppService],
 })
-export class AppModule {}
+export class AppModule implements NestModule {
+  configure(consumer: MiddlewareConsumer) {
+    consumer.apply(RoleMiddleware).forRoutes("auth","users");
+  }
+}

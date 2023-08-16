@@ -1,8 +1,9 @@
 import { IsString, IsInt } from 'class-validator';
+import * as bcrypt from 'bcrypt';
 
-export class UserDto {
+export class CreateUserDto {
   @IsString()
-  fullName: string;
+  username: string;
 
   @IsInt()
   age: number;
@@ -15,4 +16,8 @@ export class UserDto {
 
   @IsInt()
   phoneNumber: number;
+
+  @IsString()
+  role: string;
 }
+ 
