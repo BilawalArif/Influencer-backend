@@ -12,12 +12,14 @@ import { UsersService } from './users.service';
 import * as bcrypt from 'bcrypt';
 import { LocalAuthGuard } from 'src/auth/guards/local.auth.guard';
 import { CreateUserDto } from './dto/createUser.dto';
+import { Public } from 'src/decorators/public.decorator';
 
 @Controller('users')
 export class UsersController {
   constructor(private readonly usersService: UsersService) {}
 
   //post / signup
+  @Public()
   @Post('signup')
   async signup(@Res() res, @Body() createUserDto: CreateUserDto) {
     const saltOrRounds = 10;
@@ -43,7 +45,7 @@ export class UsersController {
   @Post('login')
   async login(@Res() res, @Req() req) {
     try {
-      await res.status(200).json({ User: req.user, message: 'User logged in' });
+      await res.status(200).json({ ...req.user, message: 'User logged in' });
     } catch (error) {
       throw error;
     }

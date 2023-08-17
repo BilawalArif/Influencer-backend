@@ -1,4 +1,5 @@
 import * as mongoose from 'mongoose';
+import { Role } from 'src/enums/role.enum';
 export const UserSchema = new mongoose.Schema(
   {
     username: {
@@ -25,7 +26,8 @@ export const UserSchema = new mongoose.Schema(
     },
     role: {
       type: String,
-      default: 'admin',
+      enum: Object.values(Role), // Use the values from the Role enum
+      default: Role.Influencer, // Default role if not specified
     },
   },
   { timestamps: true },
@@ -38,5 +40,5 @@ export interface User extends mongoose.Document {
   password: string;
   phoneNumber: number;
   age: number;
-  role: string;
+  role: Role;
 }

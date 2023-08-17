@@ -3,16 +3,15 @@ import { PassportModule } from '@nestjs/passport';
 import { UsersModule } from 'src/users/users.module';
 import { AuthService } from './auth.service';
 import { LocalStrategy } from './strategies/local.strategy';
-import { JwtService, JwtModule } from '@nestjs/jwt';
+import { JwtModule } from '@nestjs/jwt';
 import { UsersService } from 'src/users/users.service';
 import { AuthController } from './auth.controller';
 import { MongooseModule } from '@nestjs/mongoose';
 import { UserSchema } from 'src/users/users.model';
 import { APP_GUARD } from '@nestjs/core';
 import { jwtGuard } from './guards/jwt.auth.guard';
-import { RolesGuard } from './guards/roles.auth.guard';
+import { RoleGuard } from './guards/roles.auth.guard';
 import { RefreshJwtGuard } from './guards/refreshJwt.auth.guard';
-// import { JwtStrategy } from './strategies/jwt.strategy';
 
 @Module({
   imports: [
@@ -31,15 +30,15 @@ import { RefreshJwtGuard } from './guards/refreshJwt.auth.guard';
     UsersService,
     {
       provide: APP_GUARD,
-      useClass: jwtGuard, 
+      useClass: jwtGuard,
     },
     {
       provide: APP_GUARD,
-      useClass: RefreshJwtGuard, 
+      useClass: RefreshJwtGuard,
     },
     {
       provide: APP_GUARD,
-      useClass: RolesGuard,
+      useClass: RoleGuard,
     },
   ],
   controllers: [AuthController],

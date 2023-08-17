@@ -9,13 +9,17 @@ import {
   UseGuards,
   Res,
   Get,
+  Response,
+  Param,
 } from '@nestjs/common';
 import { CreateUserDto } from 'src/users/dto/createUser.dto';
 import { LoginDto } from 'src/users/dto/login.dto';
 import { Public } from 'src/decorators/public.decorator';
 import { jwtGuard } from './guards/jwt.auth.guard';
 import { RefreshJwtGuard } from './guards/refreshJwt.auth.guard';
-
+import { Roles } from 'src/decorators/roles.decorator';
+import { Role } from 'src/enums/role.enum';
+import { RoleGuard } from './guards/roles.auth.guard';
 
 @Controller('auth')
 export class AuthController {
@@ -24,14 +28,31 @@ export class AuthController {
     private usersService: UsersService,
   ) {}
 
-  @UseGuards(LocalAuthGuard)
+  // @UseGuards(LocalAuthGuard)
   @Public()
-  
+  @UseGuards(LocalAuthGuard)
   @Post('login')
-  
-  async login(@Body() loginDto: LoginDto) {
+  async login(@Response() res, @Request() req, @Body() loginDto: LoginDto) {
     try {
-      return await this.authService.login(loginDto.username, loginDto.password);
+      const { user } = req.user;
+      if (user) {
+        const accessToken = await this.authService.generateAccessToken(
+          user._id,
+          user.username,
+          user.role,
+        );
+        const refreshToken = await this.authService.generateRefreshToken(
+          user._id,
+          user.username,
+          user.role,
+        );
+        res.status(200).json({
+          user,
+          accessToken,
+          refreshToken,
+          message: 'user logged in successfully',
+        });
+      }
     } catch (error) {
       throw error;
     }
@@ -47,19 +68,25 @@ export class AuthController {
         user,
         message: 'user created successfully',
       });
-    } catch (error) { 
+    } catch (error) {
       throw error;
     }
+  }
+  @UseGuards(jwtGuard)
+  @UseGuards(RoleGuard) // Apply Role-based authorization
+  @Roles(Role.Admin) // Only users with 'admin' role can access this route
+  @Get(':id')
+  async getUserById(@Param('id') userId: string) {
+    const user = await this.usersService.getUserById(userId);
+    return user;
   }
 
   @UseGuards(jwtGuard)
   @Get('profile')
   getProfile(@Request() req) {
+    console.log("🚀 ~ file: auth.controller.ts:88 ~ AuthController ~ getProfile ~ req.user:", req.user)
     return req.user;
   }
-  @UseGuards(RefreshJwtGuard)
-  @Get('profileOne')
-  getProfileOne(@Request() req) {
-    return req.user;
-  }
+
+  
 }

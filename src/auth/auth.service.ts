@@ -1,57 +1,46 @@
 import { Injectable, NotAcceptableException } from '@nestjs/common';
-import { UsersService } from 'src/users/users.service';
-import * as bcrypt from 'bcrypt';
 import { JwtService } from '@nestjs/jwt';
 import { User } from 'src/users/users.model';
+import { InjectModel } from '@nestjs/mongoose';
+import { Model } from 'mongoose';
+import * as bcrypt from 'bcrypt';
 
 @Injectable()
 export class AuthService {
   constructor(
-    private readonly usersService: UsersService,
+    @InjectModel('user') private readonly userModel: Model<User>,
     private jwtService: JwtService,
   ) {}
-  async login(username: string, password: string): Promise<any> {
-    const user = await this.usersService.getUser(username);
 
+  async getUser(username: string): Promise<User | undefined> {
+    const user = await this.userModel.findOne({ username });
     if (!user) {
       throw new NotAcceptableException('Could not find the user');
     }
-
-    const passwordValid = await bcrypt.compare(password, user.password);
-
-    if (passwordValid) {
-      const access_token = await this.generateAccessToken(
-        user._id,
-        user.username,
-      );
-      const refresh_token = await this.generateRefreshToken(
-        user._id,
-        user.username,
-      );
-
-      return {
-        user,
-        access_token,
-        refresh_token,
-      };
-    }
-
-    return null;
+    return user;
   }
 
-  private async generateAccessToken(
+  async generateAccessToken(
     userId: string,
     username: string,
+    role: string,
   ): Promise<string> {
-    const payload = { sub: userId, username };
+    const payload = { sub: userId, username, role };
+
     return await this.jwtService.signAsync(payload);
   }
 
-  private async generateRefreshToken(
+  async generateRefreshToken(
     userId: string,
     username: string,
+    role: string,
   ): Promise<string> {
-    const payload = { sub: userId, username };
+    const payload = { sub: userId, username, role };
     return await this.jwtService.signAsync(payload, { expiresIn: '7d' });
+  }
+
+  async comparePassword(password: string, newPassword: string): Promise<any> {
+    const passwordValid = await bcrypt.compare(password, newPassword);
+    return passwordValid;
   }
 }

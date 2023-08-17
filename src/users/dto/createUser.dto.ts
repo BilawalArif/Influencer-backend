@@ -1,5 +1,6 @@
 import { IsString, IsInt } from 'class-validator';
 import * as bcrypt from 'bcrypt';
+import { Role } from 'src/enums/role.enum';
 
 export class CreateUserDto {
   @IsString()
@@ -18,6 +19,6 @@ export class CreateUserDto {
   phoneNumber: number;
 
   @IsString()
-  role: string;
+  role: Role;
 }
  
