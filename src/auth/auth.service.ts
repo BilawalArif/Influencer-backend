@@ -1,16 +1,27 @@
 import { Injectable, NotAcceptableException } from '@nestjs/common';
-import { JwtService } from '@nestjs/jwt';
 import { User } from 'src/users/users.model';
 import { InjectModel } from '@nestjs/mongoose';
 import { Model } from 'mongoose';
 import * as bcrypt from 'bcrypt';
+import { CreateUserDto } from 'src/users/dto/createUser.dto';
+import { TokenService } from 'src/utils/generateToken';
 
 @Injectable()
 export class AuthService {
   constructor(
     @InjectModel('user') private readonly userModel: Model<User>,
-    private jwtService: JwtService,
+    private tokenService: TokenService,
   ) {}
+
+  async createUser(createUserDto: CreateUserDto): Promise<User> {
+    const { password } = createUserDto;
+    const hashedPassword = await bcrypt.hash(password, 10);
+    const createdUser = new this.userModel({
+      ...createUserDto,
+      password: hashedPassword,
+    });
+    return createdUser;
+  }
 
   async getUser(username: string): Promise<User | undefined> {
     const user = await this.userModel.findOne({ username });
@@ -20,27 +31,16 @@ export class AuthService {
     return user;
   }
 
-  async generateAccessToken(
-    userId: string,
-    username: string,
-    role: string,
-  ): Promise<string> {
-    const payload = { sub: userId, username, role };
-
-    return await this.jwtService.signAsync(payload);
-  }
-
-  async generateRefreshToken(
-    userId: string,
-    username: string,
-    role: string,
-  ): Promise<string> {
-    const payload = { sub: userId, username, role };
-    return await this.jwtService.signAsync(payload, { expiresIn: '7d' });
-  }
-
   async comparePassword(password: string, newPassword: string): Promise<any> {
     const passwordValid = await bcrypt.compare(password, newPassword);
     return passwordValid;
   }
+
+  
+}
+
+export interface IAuthService {
+  createUser(createUserDto: CreateUserDto): Promise<User>;
+  getUser(username: string): Promise<User | undefined>;
+  comparePassword(password: string, newPassword: string): Promise<boolean>;
 }

@@ -12,6 +12,8 @@ import { APP_GUARD } from '@nestjs/core';
 import { jwtGuard } from './guards/jwt.auth.guard';
 import { RoleGuard } from './guards/roles.auth.guard';
 import { RefreshJwtGuard } from './guards/refreshJwt.auth.guard';
+import { TokenService } from 'src/utils/generateToken';
+import { GoogleStrategy } from './strategies/google.strategy';
 
 @Module({
   imports: [
@@ -27,7 +29,10 @@ import { RefreshJwtGuard } from './guards/refreshJwt.auth.guard';
   providers: [
     AuthService,
     LocalStrategy,
+    GoogleStrategy,
     UsersService,
+    TokenService,
+
     {
       provide: APP_GUARD,
       useClass: jwtGuard,
