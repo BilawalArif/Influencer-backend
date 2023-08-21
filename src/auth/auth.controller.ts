@@ -8,6 +8,7 @@ import {
   Request,
   UseGuards,
   Res,
+  Req,
   Get,
   Response,
   Param,
@@ -20,32 +21,40 @@ import { RefreshJwtGuard } from './guards/refreshJwt.auth.guard';
 import { Roles } from 'src/decorators/roles.decorator';
 import { Role } from 'src/enums/role.enum';
 import { RoleGuard } from './guards/roles.auth.guard';
+import { GoogleAuthGuard } from './guards/google.auth.guard';
+import { TokenService } from 'src/utils/generateToken';
+import { InjectModel } from '@nestjs/mongoose';
+import { Model } from 'mongoose';
+import { User } from 'src/users/users.model';
 
 @Controller('auth')
 export class AuthController {
   constructor(
     private authService: AuthService,
     private usersService: UsersService,
+    private tokenService: TokenService,
+    @InjectModel('user') private readonly userModel: Model<User>,
   ) {}
 
-  // @UseGuards(LocalAuthGuard)
+  @UseGuards(LocalAuthGuard)
   @Public()
   @UseGuards(LocalAuthGuard)
   @Post('login')
-  async login(@Response() res, @Request() req, @Body() loginDto: LoginDto) {
+  async login(@Response() res, @Request() req) {
     try {
       const { user } = req.user;
       if (user) {
-        const accessToken = await this.authService.generateAccessToken(
+        const accessToken = await this.tokenService.generateAccessToken(
           user._id,
           user.username,
           user.role,
         );
-        const refreshToken = await this.authService.generateRefreshToken(
+        const refreshToken = await this.tokenService.generateRefreshToken(
           user._id,
           user.username,
           user.role,
         );
+
         res.status(200).json({
           user,
           accessToken,
@@ -62,15 +71,22 @@ export class AuthController {
   @Post('signup')
   async signup(@Res() res, @Body() createUserDto: CreateUserDto) {
     try {
-      const user = await this.usersService.createUser(createUserDto);
+      const user = await this.authService.createUser(createUserDto);
 
       res.status(200).json({
         user,
         message: 'user created successfully',
       });
+      await user.save();
     } catch (error) {
       throw error;
     }
+  }
+
+  @UseGuards(jwtGuard)
+  @Get('profile')
+  getProfile(@Request() req) {
+    return req.user;
   }
   @UseGuards(jwtGuard)
   @UseGuards(RoleGuard) // Apply Role-based authorization
@@ -81,12 +97,22 @@ export class AuthController {
     return user;
   }
 
-  @UseGuards(jwtGuard)
-  @Get('profile')
-  getProfile(@Request() req) {
-    console.log("🚀 ~ file: auth.controller.ts:88 ~ AuthController ~ getProfile ~ req.user:", req.user)
-    return req.user;
-  }
+  //Hitting this url will take us to google signup UI
+  @Public()
+  @Get('google')
+  @UseGuards(GoogleAuthGuard)
+  async googleAuth() {}
 
-  
+  //This takes email and return user obj with token in headers
+  @Public()
+  @Get('google/callback')
+  @UseGuards(GoogleAuthGuard)
+  async googleAuthRedirect(@Req() req, @Res() res) {
+    const jwt = await this.tokenService.googleLogin(req.user);
+    res.set('authorization', jwt.access_token);
+
+    const createdUser = new this.userModel({ user: req.user });
+
+    res.json(req.user);
+  }
 }

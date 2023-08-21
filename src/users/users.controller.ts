@@ -9,6 +9,10 @@ import {
   UseGuards,
 } from '@nestjs/common';
 import { UsersService } from './users.service';
+import { Roles } from 'src/decorators/roles.decorator';
+import { jwtGuard } from 'src/auth/guards/jwt.auth.guard';
+import { RoleGuard } from 'src/auth/guards/roles.auth.guard';
+import { Role } from 'src/enums/role.enum';
 import * as bcrypt from 'bcrypt';
 import { LocalAuthGuard } from 'src/auth/guards/local.auth.guard';
 import { CreateUserDto } from './dto/createUser.dto';
@@ -18,6 +22,7 @@ import { Public } from 'src/decorators/public.decorator';
 export class UsersController {
   constructor(private readonly usersService: UsersService) {}
 
+  
   //post / signup
   @Public()
   @Post('signup')

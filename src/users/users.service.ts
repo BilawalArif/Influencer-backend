@@ -28,4 +28,11 @@ export class UsersService {
     const user = await this.userModel.findById(userId);
     return user;
   }
+
+  
+  async getUserRole(userId: string): Promise<string | undefined> {
+    // Logic to fetch user's role based on userId
+    const user = await this.userModel.findById(userId);
+    return user ? user.role : null; // Replace with actual role
+  }
 }

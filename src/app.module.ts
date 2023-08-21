@@ -4,10 +4,9 @@ import { AppService } from './app.service';
 import { DatabaseModule } from './database/database.module';
 import { AuthModule } from './auth/auth.module';
 import { UsersModule } from './users/users.module';
-import { RoleMiddleware } from './middleware/role.middleware';
 
 @Module({
-  imports: [DatabaseModule, AuthModule, UsersModule,],
+  imports: [DatabaseModule, AuthModule, UsersModule],
   controllers: [AppController],
   providers: [AppService],
 })
@@ -17,4 +16,3 @@ import { RoleMiddleware } from './middleware/role.middleware';
 //   }
 // }
 export class AppModule {}
-

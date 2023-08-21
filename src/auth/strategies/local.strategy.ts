@@ -19,9 +19,14 @@ export class LocalStrategy extends PassportStrategy(Strategy) {
       user.password,
     );
     if (user && passwordValid) {
-      return {
-        user,
-      };
+        // Convert the Mongoose document to plain JSON
+        const userPlain = user.toJSON();
+
+        // Delete the password field from the plain object
+        delete userPlain.password;
+        return {
+          user: userPlain,
+        };
     }
     throw new UnauthorizedException('Invalid Password');
   }
