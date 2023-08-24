@@ -14,6 +14,7 @@ import { RoleGuard } from './guards/roles.auth.guard';
 import { RefreshJwtGuard } from './guards/refreshJwt.auth.guard';
 import { TokenService } from 'src/utils/generateToken';
 import { GoogleStrategy } from './strategies/google.strategy';
+import { MailService } from './mails/mail.service';
 
 @Module({
   imports: [
@@ -32,6 +33,7 @@ import { GoogleStrategy } from './strategies/google.strategy';
     GoogleStrategy,
     UsersService,
     TokenService,
+    MailService,
     {
       provide: APP_GUARD,
       useClass: jwtGuard,

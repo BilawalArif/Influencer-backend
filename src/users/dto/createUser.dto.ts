@@ -1,4 +1,4 @@
-import { IsString, IsInt } from 'class-validator';
+import { IsString, IsInt, isBoolean } from 'class-validator';
 import * as bcrypt from 'bcrypt';
 import { Role } from 'src/enums/role.enum';
 
@@ -20,5 +20,7 @@ export class CreateUserDto {
 
   @IsString()
   role: Role;
+  
+  isVerified: boolean;
 }
  

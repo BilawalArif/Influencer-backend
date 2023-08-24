@@ -45,7 +45,6 @@ export class UsersController {
       throw error;
     }
   }
-  //Post / Login
   @UseGuards(LocalAuthGuard)
   @Post('login')
   async login(@Res() res, @Req() req) {
@@ -54,5 +53,19 @@ export class UsersController {
     } catch (error) {
       throw error;
     }
+  }@UseGuards(jwtGuard)
+  @UseGuards(RoleGuard) // Apply Role-based authorization
+  @Roles(Role.Admin) // Only users with 'admin' role can access this route
+  @Get(':id')
+  async getUserById(@Param('id') userId: string) {
+    const user = await this.usersService.getUserById(userId);
+    return user;
+  }
+ 
+  @Get(':id/role')
+  async getUserRole(@Param('id') userId: string) {
+    const user = await this.usersService.getUserRole(userId);
+
+    return user;
   }
 }

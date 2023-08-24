@@ -1,9 +1,16 @@
 import { Injectable } from '@nestjs/common';
 import { JwtService } from '@nestjs/jwt'; // Import JwtService if not already imported
+import { InjectModel } from '@nestjs/mongoose';
+import { randomBytes } from 'crypto';
+import { Model } from 'mongoose';
+import { User } from 'src/users/users.model';
 
 @Injectable()
 export class TokenService {
-  constructor(private readonly jwtService: JwtService) {}
+  constructor(
+    private readonly jwtService: JwtService,
+    @InjectModel('user') private readonly userModel: Model<User>,
+  ) {}
 
   async generateAccessToken(
     userId: string,
@@ -23,7 +30,7 @@ export class TokenService {
     return await this.jwtService.signAsync(payload, { expiresIn: '7d' });
   }
 
-  async googleLogin(user: any): Promise<any> {
+  async generateGoogleLoginToken(user: any): Promise<any> {
     if (user) {
       return {
         access_token: this.jwtService.sign({
@@ -36,6 +43,13 @@ export class TokenService {
         access_token: '',
       };
     }
+  }
+
+  async generateVerificationToken(user: User): Promise<string> {
+    const verificationToken = randomBytes(32).toString('hex'); // Generate a unique token here
+    user.verificationToken = verificationToken;
+    await user.save();
+    return verificationToken;
   }
 }
 

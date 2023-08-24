@@ -23,12 +23,15 @@ export const UserSchema = new mongoose.Schema(
     age: {
       type: Number,
       required: true,
+
     },
     role: {
       type: String,
       enum: Object.values(Role), // Use the values from the Role enum
       default: Role.Influencer, // Default role if not specified
     },
+    isVerified: { type: Boolean, default: false },
+    verificationToken: String,
   },
   { timestamps: true },
 );
@@ -41,4 +44,6 @@ export interface User extends mongoose.Document {
   phoneNumber: number;
   age: number;
   role: Role;
+  isVerified: boolean;
+  verificationToken: String;
 }
