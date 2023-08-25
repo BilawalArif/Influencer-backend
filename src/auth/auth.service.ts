@@ -9,14 +9,36 @@ import * as bcrypt from 'bcrypt';
 export class AuthService {
   constructor(@InjectModel('user') private readonly userModel: Model<User>) {}
 
+  private async hashPassword(password: string): Promise<string> {
+    return bcrypt.hash(password, 10);
+  }
+
+  private async createAndSaveUser(userDto: CreateUserDto): Promise<User> {
+    const createdUser = new this.userModel(userDto);
+    return createdUser.save();
+  }
+
   async createUser(createUserDto: CreateUserDto): Promise<User> {
-    const { password } = createUserDto;
-    const hashedPassword = await bcrypt.hash(password, 10);
-    const createdUser = new this.userModel({
+    const hashedPassword = await this.hashPassword(createUserDto.password);
+
+    const createdUser = this.createAndSaveUser({
       ...createUserDto,
       password: hashedPassword,
     });
+
     return createdUser;
+  }
+
+  private async createGoogleUser(createUserDto: CreateUserDto): Promise<User> {
+    const { isVerified } = createUserDto;
+    const verified = !isVerified;
+    const hashedPassword = await this.hashPassword(createUserDto.password);
+
+    return new this.userModel({
+      ...createUserDto,
+      password: hashedPassword,
+      isVerified: verified,
+    });
   }
 
   async getUser(username: string): Promise<User | undefined> {
@@ -27,26 +49,18 @@ export class AuthService {
     return user;
   }
 
-  async comparePassword(password: string, newPassword: string): Promise<any> {
+  async comparePassword(password: string, newPassword: string): Promise<boolean> {
     const passwordValid = await bcrypt.compare(password, newPassword);
     return passwordValid;
   }
 
-  async saveUser(createUserDto: CreateUserDto): Promise<User> {
-    try {
-      const { password, isVerified } = createUserDto;
-      const hashedPassword = await bcrypt.hash(password, 10);
-      const verified = !isVerified;
-      // Assuming you have a User model and it matches your database schema
-      const newUser = new this.userModel({
-        ...createUserDto,
-        password: hashedPassword,
-        isVerified: verified,
-      });
+  async saveGoogleUser(createUserDto: CreateUserDto): Promise<User> {
+    const newUser = await this.createGoogleUser(createUserDto);
 
-      return newUser;
-    } catch (error) { 
-      // Handle errors
+    try {
+      const savedUser = await newUser.save();
+      return savedUser;
+    } catch (error) {
       throw new Error('Failed to save user');
     }
   }

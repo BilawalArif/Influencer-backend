@@ -17,7 +17,7 @@ export class TokenService {
     username: string,
     role: string,
   ): Promise<string> {
-    const payload = { sub: userId, username, role };
+    const payload = { sub: 1, userId, username, role };
     return await this.jwtService.signAsync(payload);
   }
 
@@ -26,7 +26,7 @@ export class TokenService {
     username: string,
     role: string,
   ): Promise<string> {
-    const payload = { sub: userId, username, role };
+    const payload = { sub: 1, userId, username, role };
     return await this.jwtService.signAsync(payload, { expiresIn: '7d' });
   }
 
@@ -34,7 +34,7 @@ export class TokenService {
     if (user) {
       return {
         access_token: this.jwtService.sign({
-          user: user.id,
+          userId: user.id,
           sub: 1,
         }),
       };
