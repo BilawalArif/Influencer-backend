@@ -3,37 +3,45 @@ import {
   Get,
   Patch,
   Param,
-  Req, 
+  Req,
   UseGuards,
   UnauthorizedException,
+  UseFilters,
 } from '@nestjs/common';
 import { UsersService } from './users.service';
 import { Roles } from 'src/decorators/roles.decorator';
-import { jwtGuard } from 'src/auth/guards/jwt.auth.guard';
-import { RoleGuard } from 'src/auth/guards/roles.auth.guard';
+import { jwtGuard } from 'src/guards/jwt.auth.guard';
+import { RoleGuard } from 'src/guards/roles.auth.guard';
 import { Role } from 'src/enums/role.enum';
+import { AllExceptionsFilter } from 'src/utils/error.filter';
 
 @Controller('users')
+@UseFilters(AllExceptionsFilter) // Use the exception filter
 export class UsersController {
   constructor(private readonly usersService: UsersService) {}
 
   @UseGuards(jwtGuard)
   @Patch('/update')
   async updateUserData(@Req() req) {
-    const accessToken = req.headers['authorization'].split(' ')[1];
-    const userId = await this.usersService.verifyAccessToken(accessToken);
+    try {
+      const accessToken = req.headers['authorization'].split(' ')[1];
+      const userId = await this.usersService.verifyAccessToken(accessToken);
 
-    if (!userId) {
-      throw new UnauthorizedException('Invalid token');
+      if (!userId) {
+        throw new UnauthorizedException('Invalid token');
+      }
+
+      const userData = req.body;
+      const updateResult = await this.usersService.updateUserData(
+        userId,
+        userData,
+      );
+      return updateResult;
+    } catch (error) {
+      throw new AllExceptionsFilter(error);
     }
-
-    const newUsername = req.body.username;
-    const updateResult = await this.usersService.updateUserData(
-      userId,
-      newUsername,
-    ); 
-    return updateResult;
   }
+
   @UseGuards(jwtGuard)
   @UseGuards(RoleGuard) // Apply Role-based authorization
   @Roles(Role.Admin) // Only users with 'admin' role can access this route

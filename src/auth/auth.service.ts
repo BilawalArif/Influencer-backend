@@ -1,13 +1,24 @@
 import { Injectable, NotAcceptableException } from '@nestjs/common';
-import { CreateUserDto } from 'src/users/dto/createUser.dto';
-import { User } from 'src/users/users.model';
+import { CreateUserDto } from 'src/dtos/createUser.dto';
+import { User } from 'src/schemas/users.model';
 import { InjectModel } from '@nestjs/mongoose';
 import { Model } from 'mongoose';
+import { Response } from 'express';
+
 import * as bcrypt from 'bcrypt';
+import { TokenService } from 'src/utils/generateToken';
+import { VerifyAccountMailService } from './mails/verifyAccount.mail.service';
+import { ResetPasswordMailService } from './mails/resetPassword.mail.service';
 
 @Injectable()
 export class AuthService {
-  constructor(@InjectModel('user') private readonly userModel: Model<User>) {}
+  constructor(
+    @InjectModel('user') private readonly userModel: Model<User>,
+    private tokenService: TokenService,
+
+    private verifyAccountMailService: VerifyAccountMailService,
+    private resetPasswordMailService: ResetPasswordMailService,
+  ) {}
 
   private async hashPassword(password: string): Promise<string> {
     return bcrypt.hash(password, 10);
@@ -49,7 +60,10 @@ export class AuthService {
     return user;
   }
 
-  async comparePassword(password: string, newPassword: string): Promise<boolean> {
+  async comparePassword(
+    password: string,
+    newPassword: string,
+  ): Promise<boolean> {
     const passwordValid = await bcrypt.compare(password, newPassword);
     return passwordValid;
   }
@@ -62,6 +76,61 @@ export class AuthService {
       return savedUser;
     } catch (error) {
       throw new Error('Failed to save user');
+    }
+  }
+
+  async generateTokens(user: User): Promise<{
+    accessToken: string;
+    refreshToken: string;
+    googleAuthToken: any;
+  }> {
+    const accessToken = await this.tokenService.generateAccessToken(
+      user?._id,
+      user?.username,
+      user?.role,
+    );
+    const refreshToken = await this.tokenService.generateRefreshToken(
+      user?._id,
+      user?.username,
+      user?.role,
+    );
+    const googleAuthToken = await this.tokenService.generateGoogleLoginToken(
+      user ? user : undefined,
+    );
+
+    return { accessToken, refreshToken, googleAuthToken };
+  }
+
+  setAuthorizationHeader(res: Response, token: string): void {
+    res.set('authorization', token);
+  }
+
+  sendSignupResponse(res: Response, user: User): void {
+    res.status(200).json({
+      user,
+      message: 'User created. Check your email for verification.',
+    });
+  }
+
+  async sendVerificationEmail(user: User): Promise<void> {
+    const verificationToken = await this.tokenService.generateVerificationToken(
+      user,
+    );
+    await this.verifyAccountMailService.verificationEmail(
+      user.email,
+      verificationToken,
+    );
+  }
+
+  async sendPasswordResetEmail(email: string): Promise<void> {
+    const user = await this.userModel.findOne({ email });
+    if (user) {
+      const resetPasswordToken =
+        await this.tokenService.generateResetPasswordToken(user);
+      await this.resetPasswordMailService.passwordResetEmail(
+        user.email,
+        resetPasswordToken,
+      );
     }
   }
 }

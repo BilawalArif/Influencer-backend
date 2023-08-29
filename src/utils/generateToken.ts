@@ -3,7 +3,7 @@ import { JwtService } from '@nestjs/jwt'; // Import JwtService if not already im
 import { InjectModel } from '@nestjs/mongoose';
 import { randomBytes } from 'crypto';
 import { Model } from 'mongoose';
-import { User } from 'src/users/users.model';
+import { User } from 'src/schemas/users.model';
 
 @Injectable()
 export class TokenService {
@@ -50,6 +50,14 @@ export class TokenService {
     user.verificationToken = verificationToken;
     await user.save();
     return verificationToken;
+  }
+
+  async generateResetPasswordToken(user: User): Promise<string> {
+    const resetPasswordToken = randomBytes(32).toString('hex'); // Generate a unique token
+    user.resetPasswordToken = resetPasswordToken;
+    user.resetPasswordTokenExpiry = Date.now() + 3600000; // Token expires in 1 hour
+    await user.save();
+    return resetPasswordToken;
   }
 }
 

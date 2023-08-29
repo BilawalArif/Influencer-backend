@@ -1,13 +1,9 @@
-import {
-  ForbiddenException,
-  Injectable,
-  NotFoundException,
-  UnauthorizedException,
-} from '@nestjs/common';
+import { Injectable, NotFoundException } from '@nestjs/common';
 import { InjectModel } from '@nestjs/mongoose';
 import { Model } from 'mongoose';
-import { User } from './users.model';
+import { User } from '../schemas/users.model';
 import { JwtService } from '@nestjs/jwt';
+import { UpdateUserDto } from 'src/dtos/updateUser.dto';
 
 @Injectable()
 export class UsersService {
@@ -41,7 +37,7 @@ export class UsersService {
   }
 
   async verifyAccessToken(token: string): Promise<string> {
-    const { userId = '' } = await this.jwtService.verify(token);
+    const { userId = '' } = await this.jwtService.verifyAsync(token);
     return userId || '';
   }
 
@@ -49,24 +45,24 @@ export class UsersService {
     return userId == user._id.toString();
   }
 
-  private async updateUser(user: User, newUsername: string): Promise<void> {
-    user.username = newUsername; // Example update logic
+  private async updateUser(user: User, userData: UpdateUserDto): Promise<void> {
+    user.username = userData.username; 
   }
 
   private async saveUser(user: User): Promise<User> {
-    return user.save();
+    return user.save(); 
   }
 
-  async updateUserData(userId: string, newUsername: string): Promise<User> {
+  async updateUserData(userId: string, userData: UpdateUserDto): Promise<User> {
     const user = await this.getUserById(userId);
 
     if (!user) {
       throw new NotFoundException('User not found');
     }
     // user validation
-    const isValid = this.validateUserAccess(user, userId);
+    this.validateUserAccess(user, userId);
     // updating user
-    this.updateUser(user, newUsername);
+    this.updateUser(user, userData);
     // store user data
     return this.saveUser(user);
   }

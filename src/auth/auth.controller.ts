@@ -1,5 +1,7 @@
 import { AuthService } from './auth.service';
-import { LocalAuthGuard } from './guards/local.auth.guard';
+import { LocalAuthGuard } from '../guards/local.auth.guard';
+import { BadRequestException } from '@nestjs/common';
+
 import {
   Body,
   Controller,
@@ -10,52 +12,32 @@ import {
   Req,
   Get,
   Param,
+  UseFilters,
 } from '@nestjs/common';
-import { CreateUserDto } from 'src/users/dto/createUser.dto';
+import { CreateUserDto } from 'src/dtos/createUser.dto';
 import { Public } from 'src/decorators/public.decorator';
-import { jwtGuard } from './guards/jwt.auth.guard';
-import { GoogleAuthGuard } from './guards/google.auth.guard';
+import { jwtGuard } from '../guards/jwt.auth.guard';
+import { GoogleAuthGuard } from '../guards/google.auth.guard';
 import { TokenService } from 'src/utils/generateToken';
 import { InjectModel } from '@nestjs/mongoose';
 import { Model } from 'mongoose';
-import { User } from 'src/users/users.model';
+import { User } from 'src/schemas/users.model';
 import { Response } from 'express';
-import { MailService } from './mails/mail.service';
+import { VerifyAccountMailService } from './mails/verifyAccount.mail.service';
+import { AllExceptionsFilter } from 'src/utils/error.filter';
+import { ResetPasswordMailService } from './mails/resetPassword.mail.service';
 
 @Controller('auth')
+@UseFilters(AllExceptionsFilter)
 export class AuthController {
   constructor(
     private authService: AuthService,
-    private mailService: MailService,
+    private verifyAccountMailService: VerifyAccountMailService,
+    private resetPasswordMailService: ResetPasswordMailService,
+
     private tokenService: TokenService,
     @InjectModel('user') private readonly userModel: Model<User>,
   ) {}
-
-  private async generateTokens(user: User): Promise<{
-    accessToken: string;
-    refreshToken: string;
-    googleAuthToken: any;
-  }> {
-    const accessToken = await this.tokenService.generateAccessToken(
-      user._id,
-      user.username,
-      user.role,
-    );
-    const refreshToken = await this.tokenService.generateRefreshToken(
-      user._id,
-      user.username,
-      user.role,
-    );
-    const googleAuthToken = await this.tokenService.generateGoogleLoginToken(
-      user,
-    );
-
-    return { accessToken, refreshToken, googleAuthToken };
-  }
-
-  private setAuthorizationHeader(res: Response, token: string): void {
-    res.set('authorization', token);
-  }
 
   @Public()
   @UseGuards(LocalAuthGuard)
@@ -65,8 +47,8 @@ export class AuthController {
       const { user } = req.user;
       if (user) {
         const { accessToken = '', refreshToken = '' } =
-          await this.generateTokens(user);
-        this.setAuthorizationHeader(res, accessToken);
+          await this.authService.generateTokens(user);
+        this.authService.setAuthorizationHeader(res, accessToken);
 
         res.status(200).json({
           user,
@@ -76,38 +58,20 @@ export class AuthController {
         });
       }
     } catch (error) {
-      throw error;
+      throw new AllExceptionsFilter(error);
     }
-  }
-
-  private async createUser(createUserDto: CreateUserDto): Promise<User> {
-    return this.authService.createUser(createUserDto);
-  }
-
-  private async sendVerificationEmail(user: User): Promise<void> {
-    const verificationToken = await this.tokenService.generateVerificationToken(
-      user,
-    );
-    await this.mailService.sendVerificationEmail(user.email, verificationToken);
-  }
-
-  private sendSignupResponse(res: Response, user: User): void {
-    res.status(200).json({
-      user,
-      message: 'User created. Check your email for verification.',
-    });
   }
 
   @Public()
   @Post('signup')
   async signup(@Res() res, @Body() createUserDto: CreateUserDto) {
     try {
-      const user = await this.createUser(createUserDto);
-      await this.sendVerificationEmail(user);
+      const user = await this.authService.createUser(createUserDto);
+      await this.authService.sendVerificationEmail(user);
 
-      this.sendSignupResponse(res, user);
+      this.authService.sendSignupResponse(res, user);
     } catch (error) {
-      throw error;
+      throw new AllExceptionsFilter(error);
     }
   }
 
@@ -129,8 +93,13 @@ export class AuthController {
   @UseGuards(GoogleAuthGuard)
   async googleAuthRedirect(@Req() req, @Res() res) {
     try {
-      const { googleAuthToken } = await this.generateTokens(req.user);
-      this.setAuthorizationHeader(res, googleAuthToken.access_token);
+      const { googleAuthToken } = await this.authService.generateTokens(
+        req.user,
+      );
+      this.authService.setAuthorizationHeader(
+        res,
+        googleAuthToken.access_token,
+      );
 
       const queryParams = new URLSearchParams({
         email: req.user.email,
@@ -139,7 +108,7 @@ export class AuthController {
       const redirectUrl = `/auth/formPage/?${queryParams}`;
       res.redirect(redirectUrl);
     } catch (error) {
-      throw error;
+      throw new AllExceptionsFilter(error);
     }
   }
 
@@ -169,15 +138,20 @@ export class AuthController {
       await user.save();
     } catch (error) {
       // Handle errors
-      throw error;
+      throw new AllExceptionsFilter(error);
     }
   }
 
   @Public()
-  @Get('verify/:token')
+  @Get('verify')
   // @Redirect('/account-verified')
-  async verifyAccount(@Param('token') token: string) {
-    const user = await this.mailService.verifyUserByToken(token);
+  async verifyAccount(@Req() req) {
+    const queryParams = req.query;
+
+    const user = await this.verifyAccountMailService.verifyUserByToken(
+      queryParams.token,
+      queryParams.email,
+    );
 
     if (user) {
       return { statusCode: 302, meassage: 'account-verified' };
@@ -186,6 +160,38 @@ export class AuthController {
     }
   }
 
+  @Public()
+  @Post('forgot-password')
+  async requestPasswordReset(@Body() body: { email: string }) {
+    try {
+      await this.authService.sendPasswordResetEmail(body.email);
+      return { message: 'Password reset email sent successfully' };
+    } catch (error) {
+      throw new BadRequestException(error.message);
+    }
+  }
+
+  @Public()
+  @Post('reset-password')
+  async resetPassword(
+    @Body() body: { newPassword: string },
+    @Res() res,
+    @Req() req,
+  ) {
+    try {
+      const queryParams = req.query;
+      await this.resetPasswordMailService.resetPassword(
+        queryParams.email,
+        queryParams.token,
+        body.newPassword,
+      );
+      res.status(200).json({
+        message: 'Password reset successful',
+      });
+    } catch (error) {
+      throw new BadRequestException(error.message);
+    }
+  }
   private formHtml(email: string): string {
     return `
     <!DOCTYPE html>

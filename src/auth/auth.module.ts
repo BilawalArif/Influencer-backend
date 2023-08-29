@@ -2,19 +2,20 @@ import { Module } from '@nestjs/common';
 import { PassportModule } from '@nestjs/passport';
 import { UsersModule } from 'src/users/users.module';
 import { AuthService } from './auth.service';
-import { LocalStrategy } from './strategies/local.strategy';
+import { LocalStrategy } from '../strategies/local.strategy';
 import { JwtModule } from '@nestjs/jwt';
 import { UsersService } from 'src/users/users.service';
 import { AuthController } from './auth.controller';
 import { MongooseModule } from '@nestjs/mongoose';
-import { UserSchema } from 'src/users/users.model';
+import { UserSchema } from 'src/schemas/users.model';
 import { APP_GUARD } from '@nestjs/core';
-import { jwtGuard } from './guards/jwt.auth.guard';
-import { RoleGuard } from './guards/roles.auth.guard';
-import { RefreshJwtGuard } from './guards/refreshJwt.auth.guard';
+import { jwtGuard } from '../guards/jwt.auth.guard';
+import { RoleGuard } from '../guards/roles.auth.guard';
+import { RefreshJwtGuard } from '../guards/refreshJwt.auth.guard';
 import { TokenService } from 'src/utils/generateToken';
-import { GoogleStrategy } from './strategies/google.strategy';
-import { MailService } from './mails/mail.service';
+import { GoogleStrategy } from '../strategies/google.strategy';
+import { VerifyAccountMailService } from './mails/verifyAccount.mail.service';
+import { ResetPasswordMailService } from './mails/resetPassword.mail.service';
 
 @Module({
   imports: [
@@ -33,7 +34,8 @@ import { MailService } from './mails/mail.service';
     GoogleStrategy,
     UsersService,
     TokenService,
-    MailService,
+    VerifyAccountMailService,
+    ResetPasswordMailService,
     {
       provide: APP_GUARD,
       useClass: jwtGuard,
